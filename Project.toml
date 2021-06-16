@@ -1,0 +1,11 @@
+name = "FurutaProcess"
+uuid = "8f95568d-7bec-4a61-b2a3-e2d98ddd1432"
+authors = ["albheim "]
+version = "0.1.0"
+
+[deps]
+AbstractControlProcesses = "d0d8031c-1ca7-4517-a182-a2551ca8592c"
+MobergIO = "9bdc2bb6-e40d-4944-bd5f-2bf890d3f651"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"

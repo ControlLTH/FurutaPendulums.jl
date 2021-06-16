@@ -1,0 +1,30 @@
+# This file is machine-generated - editing it directly is not advised
+
+[[AbstractControlProcesses]]
+path = "../../AbstractControlProcesses"
+uuid = "d0d8031c-1ca7-4517-a182-a2551ca8592c"
+version = "0.1.0"
+
+[[MobergIO]]
+git-tree-sha1 = "a73bbb1c70488f627d2a0ba80a531b0c19e092a7"
+repo-rev = "master"
+repo-url = "https://gitlab.control.lth.se/mattiasf/mobergio"
+uuid = "9bdc2bb6-e40d-4944-bd5f-2bf890d3f651"
+version = "0.9.21"
+
+[[Random]]
+deps = ["Serialization"]
+uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[[Reexport]]
+git-tree-sha1 = "5f6c21241f0f655da3952fd60aa18477cf96c220"
+uuid = "189a3867-3050-52da-a836-e630ba90ab69"
+version = "1.1.0"
+
+[[Serialization]]
+uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[UnPack]]
+git-tree-sha1 = "387c1f73762231e86e0c9c5443ce3b4a0a9a0c2b"
+uuid = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+version = "1.0.2"
