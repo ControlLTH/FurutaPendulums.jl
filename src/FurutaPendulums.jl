@@ -34,8 +34,8 @@ function ACP.periodic_wait(p::SimulatedFurutaPendulum, last_time, dt)
 end
 
 function ACP.initialize(p::FurutaPendulum) 
-    write(p.calibrate, true) # TODO add a sleep here to wait for calibaration to finish?
-    sleep()
+    write(p.calibrate, true) 
+    sleep(5) # TODO measure correct sleep here
 end
 ACP.initialize(p::SimulatedFurutaPendulum) = p.x .= zeros(5) # Used as a reset
 
