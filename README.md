@@ -1,6 +1,6 @@
-# FurutaProcess
+# FurutaPendulums
 
-This package implements the [AbstractControlProcesses]() interface to provide connections to both the physical Furuta pendulum as well as a simulated version of it.
+This package implements the [AbstractControlProcesses]() interface to provide connections to both the physical furuta pendulum as well as a simulated version of it.
 
 ## Installation
 First you need moberg installed and configure on your computer.
