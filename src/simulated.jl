@@ -50,7 +50,7 @@ function SimulatedFurutaPendulum(;
         T = Float64,
         # Motor
         K = T(0.1),
-        R = T(1),
+        R = T(0.01),
         L = T(0.005),
 
         # Swing
@@ -85,27 +85,34 @@ function step!(p, dt)
     h = p.params.h 
 
     steps = round(Int, dt / h)
-    steps ≈ dt / h || error("The step need to be a multiple of the simulation time.")
+    steps ≈ dt / h || throw(ArgumentError("`dt` need to be a multiple of the simulation step `h`."))
     for _ in 1:steps
         #RK3/8
         k1 = f(p, x, u)
         k2 = f(p, x + h * k1 / 3, u)
         k3 = f(p, x + h * (-k1 / 3 + k2), u)
         k4 = f(p, x + h * (k1 - k2 + k3), u)
-        @show k1 k2 k3 k4
         x .+= h .* (k1 .+ 3 .* k2 .+ 3 .* k3 .+ k4) ./ 8
     end
+
+    x[1] = rem2pi(x[1], RoundToZero)
+    x[3] = rem2pi(x[3], RoundToZero)
 
     # Should this be here?
     x[2] = clamp(x[2] , -p.params.max_speed, p.params.max_speed)
     x[4] = clamp(x[4] , -p.params.max_speed, p.params.max_speed)
 end
 
+# See https://portal.research.lu.se/portal/files/4453844/8727127.pdf 
+# and https://ctms.engin.umich.edu/CTMS/index.php?example=MotorSpeed&section=SystemModeling
+# for source of dynamic equations
 function f(p::SimulatedFurutaPendulum, x, u)
+    # Base angle/speed, arm angle/speed, torque
     θ, θdot, ϕ, ϕdot, τ = x
 
     @unpack α, β, γ, δ, τc, τs, K, R, L = p.params
 
+    # Friction forces
     τF = if abs(x[4]) > 0.01 
         τc*sign(x[4]) 
     elseif abs(τ) < τs
@@ -113,12 +120,12 @@ function f(p::SimulatedFurutaPendulum, x, u)
     else
         τs*sign(τ)
     end
+    τF = 0
 
     cost = cos(θ)
     sint = sin(θ)
 
     ψ = 1 / (α*β - γ^2 + (β^2 + γ^2)*sint^2)
-
     dθ    = θdot
     dθdot = ψ * (β*(α+β*sint^2)*cost*sint*ϕdot^2
         + 2*β*γ*(1-sint^2)*sint*ϕdot*θdot - γ^2*cost*sint*θdot^2
@@ -126,7 +133,7 @@ function f(p::SimulatedFurutaPendulum, x, u)
     dϕ    = ϕdot
     dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
         + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
-    dτ    = -K^2/L * ϕdot - R/L * τ + K/L * u
+    dτ    = -K^2/L * ϕdot - R/L * τ + K/L * u # This should be τ and not τ - τF?
 
     return [dθ, dθdot, dϕ, dϕdot, dτ]
 end
