@@ -35,7 +35,7 @@ end
 
 function ACP.initialize(p::FurutaPendulum) 
     write(p.calibrate, true) 
-    sleep(5) # TODO measure correct sleep here
+    sleep(8) # TODO measure correct sleep here
 end
 ACP.initialize(p::SimulatedFurutaPendulum) = p.x .= zeros(5) # Used as a reset
 
