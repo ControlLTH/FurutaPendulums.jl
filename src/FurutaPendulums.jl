@@ -23,20 +23,17 @@ ACP.sampletime(p::FurutaPendulum) = 0.001 # TODO find the correct one
 ACP.sampletime(p::SimulatedFurutaPendulum) = p.params.h
 ACP.bias(p::AbstractFurutaPendulum) = 0
 
-ACP.control(p::FurutaPendulum, u) = write(p.voltage, u)
-ACP.control(p::SimulatedFurutaPendulum, u) = p.u = u
+ACP.control(p::FurutaPendulum, u::Real) = write(p.voltage, u)
+ACP.control(p::SimulatedFurutaPendulum, u::Real) = p.u = clamp(u, -p.params.max_torque, p.params.max_torque)
 ACP.measure(p::FurutaPendulum) = [read(p.base_angle), read(p.base_velocity), read(p.arm_angle), read(p.arm_velocity)]
-ACP.measure(p::SimulatedFurutaPendulum) = p.x[1:4] .+ p.params.noise * randn(p.rng, 4)
+ACP.measure(p::SimulatedFurutaPendulum) = p.x .+ p.params.noise * randn(p.rng, 4)
 
 function ACP.periodic_wait(p::SimulatedFurutaPendulum, last_time, dt)
     step!(p, dt)
     last_time + dt
 end
 
-function ACP.initialize(p::FurutaPendulum) 
-    write(p.calibrate, true) 
-    sleep(13) # TODO measure correct sleep here
-end
-ACP.initialize(p::SimulatedFurutaPendulum) = p.x .= zeros(5) # Used as a reset
+# ACP.initialize(p::FurutaPendulum) = write(p.calibrate, true) 
+ACP.initialize(p::SimulatedFurutaPendulum) = fill!(p.x, 0) # Used as a reset
 
 end

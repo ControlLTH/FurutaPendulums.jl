@@ -1,10 +1,4 @@
 struct FurutaParams{T}
-    # Motor
-    K::T
-    R::T
-    L::T
-
-    # FurutaParams
     α::T
     β::T
     γ::T
@@ -27,9 +21,6 @@ end
 """
     SimulatedFurutaPendulum(; 
         T=Float64,
-        K = T(0.1),
-        R = T(1),
-        L = T(0.005),
         J = T(1.54e-4),
         M = T(0),
         ma = T(0),
@@ -48,12 +39,6 @@ Creates an instance of a simulator for the furutapendulum.
 """
 function SimulatedFurutaPendulum(;
         T = Float64,
-        # Motor
-        K = T(0.1),
-        R = T(0.01),
-        L = T(0.005),
-
-        # Swing
         J = T(1.54e-4),
         M = T(0),
         ma = T(0),
@@ -65,7 +50,7 @@ function SimulatedFurutaPendulum(;
         h = T(0.001), # Simulation time, TODO find what this actually is
         max_speed = T(100),
         max_torque = T(1),
-        x0 = zeros(T, 5),
+        x0 = zeros(T, 4),
         noise = T(0.01),
         rng = Random.GLOBAL_RNG,
     )
@@ -75,7 +60,7 @@ function SimulatedFurutaPendulum(;
     γ = (M+mp/2)*la*lp
     δ = (M+mp/2)*g*lp
     
-    params = FurutaParams{T}(K, R, L, α, β, γ, δ, τc, τs, h, max_speed, max_torque, noise)
+    params = FurutaParams{T}(α, β, γ, δ, τc, τs, h, max_speed, max_torque, noise)
     SimulatedFurutaPendulum{T, typeof(rng)}(params, x0, zero(T), rng)
 end
 
@@ -106,11 +91,11 @@ end
 # See https://portal.research.lu.se/portal/files/4453844/8727127.pdf 
 # and https://ctms.engin.umich.edu/CTMS/index.php?example=MotorSpeed&section=SystemModeling
 # for source of dynamic equations
-function f(p::SimulatedFurutaPendulum, x, u)
+function f(p::SimulatedFurutaPendulum, x, τ)
     # Base angle/speed, arm angle/speed, torque
-    θ, θdot, ϕ, ϕdot, τ = x
+    θ, θdot, ϕ, ϕdot = x
 
-    @unpack α, β, γ, δ, τc, τs, K, R, L = p.params
+    @unpack α, β, γ, δ, τc, τs = p.params
 
     # Friction forces
     τF = if abs(x[4]) > 0.01 
@@ -120,7 +105,6 @@ function f(p::SimulatedFurutaPendulum, x, u)
     else
         τs*sign(τ)
     end
-    τF = 0
 
     cost = cos(θ)
     sint = sin(θ)
@@ -133,7 +117,6 @@ function f(p::SimulatedFurutaPendulum, x, u)
     dϕ    = ϕdot
     dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
         + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
-    dτ    = -K^2/L * ϕdot - R/L * τ + K/L * u # This should be τ and not τ - τF?
 
-    return [dθ, dθdot, dϕ, dϕdot, dτ]
+    return [dθ, dθdot, dϕ, dϕdot]
 end
