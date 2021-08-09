@@ -82,7 +82,7 @@ function SimulatedFurutaPendulum(;
     δ = (M+mp/2)*g*lp
     
     params = FurutaParams{Float64}(α, β, γ, δ, τc, τs, τv, h, max_speed, max_torque, noise, friction)
-    SimulatedFurutaPendulum{Float64, typeof(rng)}(params, x0, zero(T), rng)
+    SimulatedFurutaPendulum{Float64, typeof(rng)}(params, x0, 0.0, rng)
 end
 
 function step!(p, dt)
@@ -155,3 +155,27 @@ function stiction_friction(p::SimulatedFurutaPendulum, ϕdot, τ)
         τs*sign(τ)
     end
 end
+
+struct ValueContainer 
+    v::Float64
+end
+
+function Base.getproperty(p::SimulatedFurutaPendulum, s::Symbol)
+    K0 = 0.0000652 # kinetic energy constant base: 0.5*moment of inertia, kgm^2 
+    K1 = 0.00000387 # kinetic energy constant pendulum 
+
+    if s === :arm_energy
+        ϕ, ϕdot, θ, θdot = p.x
+        arm_energy = (K1 * θdot^2 + 0.0054 * 9.8 * 0.07/2 * (1 - cos(θ)))
+        return ValueContainer(arm_energy)
+    elseif s === :total_energy
+        ϕ, ϕdot, θ, θdot = p.x
+        arm_energy = (K1 * θdot^2 + 0.0054 * 9.8 * 0.07/2 * (1 - cos(θ)))
+        base_energy = K0 * ϕdot^2
+        return ValueContainer(base_energy + arm_energy)
+    else
+        return getfield(p, s)
+    end
+end
+
+Base.read(c::ValueContainer) = c.v
