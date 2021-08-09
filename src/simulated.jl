@@ -5,10 +5,12 @@ struct FurutaParams{T}
     δ::T
     τc::T
     τs::T
+    τv::T
     h::T
     max_speed::T
     max_torque::T
     noise::T
+    friction::Symbol
 end
 
 mutable struct SimulatedFurutaPendulum{T, R<:AbstractRNG} <: SimulatedProcess
@@ -20,38 +22,57 @@ end
 
 """
     SimulatedFurutaPendulum(; 
-        T=Float64,
-        J = T(1.54e-4),
-        M = T(0),
-        ma = T(0),
-        mp = T(5.44e-3),
-        la = T(4.3e-2),
-        lp = T(6.46e-2),
-        τc = T(0.0076),
-        τs = T(0.008),
-        h = T(0.002),
-        max_speed = T(100),
-        max_torque = T(1),
+        J = 1.54e-4,
+        M = 0,
+        ma = 0,
+        mp = 5.44e-3,
+        la = 4.3e-2,
+        lp = 6.46e-2,
+        friction = :none,
+        τc = 0.0076,
+        τs = 0.008,
+        τv = 0.008,
+        h = 0.002,
+        x0 = zeros(4),
+        max_speed = 100,
+        max_torque = 1,
+        noise = 0.01,
         rng = Random.GLOBAL_RNG,
     )
 
 Creates an instance of a simulator for the furutapendulum. 
+It is made up of two inertial bodies, a center pillar with 
+intertia `J` connected to a horizontal arm with length `la`
+and homogenuously distributed mass `ma`. The other end of the
+arm is connected to the pendulum which has length `lp`, homogenuously 
+distributed mass `mp` and point distributed mass `M` at the end.
+The `ϕ`-joint is in the center pillar while the `θ`-joint is for the
+pendulum arm. There is significant `friction` in the `ϕ`-joint which 
+is modeled using either coulomb and viscous friction `:viscous`, 
+or coulomb friction and stiction `:stiction` (for more info see Gäfvert
+https://portal.research.lu.se/portal/files/4453844/8727127.pdf).
+The simulation takes steps of `h` seconds, and the initial value `x0`
+is for `[ϕ, ϕdot, θ, θdot]`.
+There is `max_speed` and `max_torque` limiting the speed and torque, and
+`noise` that adds white noise with this scaling factor on top of the 
+measurements.
 """
 function SimulatedFurutaPendulum(;
-        T = Float64,
-        J = T(1.54e-4),
-        M = T(0),
-        ma = T(0),
-        mp = T(5.44e-3),
-        la = T(4.3e-2),
-        lp = T(6.46e-2),
-        τc = T(0.0076),
-        τs = T(0.008),
-        h = T(0.001), # Simulation time, TODO find what this actually is
-        max_speed = T(100),
-        max_torque = T(1),
-        x0 = zeros(T, 4),
-        noise = T(0.01),
+        J = 1.54e-4,
+        M = 0,
+        ma = 0,
+        mp = 5.44e-3,
+        la = 4.3e-2,
+        lp = 6.46e-2,
+        τc = 0.0076,
+        τs = 0.008,
+        τv = 0.008,
+        h = 0.001, # Simulation time, TODO find what this actually is
+        max_speed = 100,
+        max_torque = 1,
+        x0 = zeros(4),
+        noise = 0.01,
+        friction::Symbol = :viscous,
         rng = Random.GLOBAL_RNG,
     )
     g = 9.81
@@ -60,8 +81,8 @@ function SimulatedFurutaPendulum(;
     γ = (M+mp/2)*la*lp
     δ = (M+mp/2)*g*lp
     
-    params = FurutaParams{T}(α, β, γ, δ, τc, τs, h, max_speed, max_torque, noise)
-    SimulatedFurutaPendulum{T, typeof(rng)}(params, x0, zero(T), rng)
+    params = FurutaParams{Float64}(α, β, γ, δ, τc, τs, τv, h, max_speed, max_torque, noise, friction)
+    SimulatedFurutaPendulum{Float64, typeof(rng)}(params, x0, zero(T), rng)
 end
 
 function step!(p, dt)
@@ -86,6 +107,8 @@ function step!(p, dt)
     # Should this be here?
     x[2] = clamp(x[2] , -p.params.max_speed, p.params.max_speed)
     x[4] = clamp(x[4] , -p.params.max_speed, p.params.max_speed)
+
+    nothing
 end
 
 # See https://portal.research.lu.se/portal/files/4453844/8727127.pdf 
@@ -93,17 +116,16 @@ end
 # for source of dynamic equations
 function f(p::SimulatedFurutaPendulum, x, τ)
     # Base angle/speed, arm angle/speed, torque
-    θ, θdot, ϕ, ϕdot = x
+    ϕ, ϕdot, θ, θdot = x
 
-    @unpack α, β, γ, δ, τc, τs = p.params
+    @unpack α, β, γ, δ, friction = p.params
 
     # Friction forces
-    τF = if abs(x[4]) > 0.01 
-        τc*sign(x[4]) 
-    elseif abs(τ) < τs
-        τ
-    else
-        τs*sign(τ)
+    τF = 0
+    if friction === :viscous
+        τF = viscous_friction(p, ϕdot)
+    elseif friction === :stiction
+        τF = stiction_friction(p, ϕdot, τ)
     end
 
     cost = cos(θ)
@@ -118,5 +140,18 @@ function f(p::SimulatedFurutaPendulum, x, τ)
     dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
         + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
 
-    return [dθ, dθdot, dϕ, dϕdot]
+    return [dϕ, dϕdot, dθ, dθdot]
+end
+
+function viscous_friction(p::SimulatedFurutaPendulum, ϕdot)
+    p.params.τc * sign(ϕdot) + p.params.τv * ϕdot
+end
+function stiction_friction(p::SimulatedFurutaPendulum, ϕdot, τ)
+    if abs(ϕdot) > 0.02 
+        p.params.τc*sign(ϕdot) 
+    elseif abs(τ) < p.params.τs
+        τ
+    else
+        τs*sign(τ)
+    end
 end
