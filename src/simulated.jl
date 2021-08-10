@@ -58,12 +58,12 @@ There is `max_speed` and `max_torque` limiting the speed and torque, and
 measurements.
 """
 function SimulatedFurutaPendulum(;
-        J = 1.54e-4,
+        J = 1.25e-4,
         M = 0,
         ma = 0,
         mp = 5.44e-3,
         la = 4.3e-2,
-        lp = 6.46e-2,
+        lp = 7.5e-2,
         τc = 0.0076,
         τs = 0.008,
         τv = 0.008,
@@ -132,13 +132,13 @@ function f(p::SimulatedFurutaPendulum, x, τ)
     sint = sin(θ)
 
     ψ = 1 / (α*β - γ^2 + (β^2 + γ^2)*sint^2)
+    dϕ    = ϕdot
+    dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
+        + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
     dθ    = θdot
     dθdot = ψ * (β*(α+β*sint^2)*cost*sint*ϕdot^2
         + 2*β*γ*(1-sint^2)*sint*ϕdot*θdot - γ^2*cost*sint*θdot^2
         + δ*(α+β*sint^2)*sint - γ*cost*(τ-τF)) 
-    dϕ    = ϕdot
-    dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
-        + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
 
     return [dϕ, dϕdot, dθ, dθdot]
 end
