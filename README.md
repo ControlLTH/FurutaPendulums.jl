@@ -16,7 +16,6 @@ Pkg.add("https://github.com/ControlLTH/FurutaPendulums.jl")
 ```julia
 using FurutaPendulums
 furuta = FurutaPendulum() # or SimulatedFurutaPendulum()
-initialize(furuta)
 # Initialize time for periodic stepping to work both with simulated and physical process
 last_time = periodic_wait(furuta, 0, 0) 
 
