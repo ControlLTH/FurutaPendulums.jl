@@ -37,6 +37,7 @@ end
         max_speed = 100,
         max_torque = 1,
         noise = 0.01,
+        friction = :viscous,
         rng = Random.GLOBAL_RNG,
     )
 
@@ -58,19 +59,19 @@ There is `max_speed` and `max_torque` limiting the speed and torque, and
 measurements.
 """
 function SimulatedFurutaPendulum(;
-        J = 1.25e-4,
+        J = 1.54e-4,
         M = 0,
         ma = 0,
         mp = 5.44e-3,
         la = 4.3e-2,
-        lp = 7.5e-2,
+        lp = 6.46e-2,
         τc = 0.0076,
         τs = 0.008,
         τv = 0.008,
-        h = 0.001, # Simulation time, TODO find what this actually is
+        h = 0.002, # Simulation time, TODO find what this actually is
         max_speed = 100,
-        max_torque = 1,
-        x0 = zeros(4),
+        max_torque = 0.04,
+        x0 = [0.0, 0.0, π, 0.0], # Start down as default
         noise = 0.01,
         friction::Symbol = :viscous,
         rng = Random.GLOBAL_RNG,
@@ -85,13 +86,13 @@ function SimulatedFurutaPendulum(;
     SimulatedFurutaPendulum{Float64, typeof(rng)}(params, x0, 0.0, rng)
 end
 
-function step!(p, dt)
+function step!(p::SimulatedFurutaPendulum, dt)
     u = p.u
     x = p.x
     h = p.params.h 
 
     steps = round(Int, dt / h)
-    steps ≈ dt / h || throw(ArgumentError("`dt` need to be a multiple of the simulation step `h`."))
+    steps ≈ dt / h || throw(ArgumentError("`dt`=$(dt) need to be a multiple of the simulation step `h`=$(h)."))
     for _ in 1:steps
         #RK3/8
         k1 = f(p, x, u)
