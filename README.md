@@ -3,12 +3,12 @@
 This package implements the [AbstractControlProcesses](https://github.com/ControlLTH/AbstractControlProcesses.jl) interface to provide connections to both the physical furuta pendulum as well as a simulated version of it.
 
 ## Installation
-First you need moberg installed and configure on your computer.
+First you need moberg installed and configured on your computer.
 
-To install the package after that you need to run
+After that, to install this package run
 ```julia
 import Pkg
-Pkg.add("https://github.com/ControlLTH/FurutaPendulums.jl")
+Pkg.add(url="https://github.com/ControlLTH/FurutaPendulums.jl")
 ```
 
 ## Usage
