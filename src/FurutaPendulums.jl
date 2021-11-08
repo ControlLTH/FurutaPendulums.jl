@@ -24,11 +24,11 @@ ACP.sampletime(p::SimulatedFurutaPendulum) = p.params.h
 ACP.bias(p::AbstractFurutaPendulum) = 0
 
 ACP.control(p::FurutaPendulum, u::Real) = write(p.voltage, u)
-ACP.control(p::SimulatedFurutaPendulum, u::Real) = p.u = clamp(u, -p.params.max_torque, p.params.max_torque)
+ACP.control(p::SimulatedFurutaPendulum, u::Real) = p.u = u
 ACP.measure(p::FurutaPendulum) = [
     read(p.base_angle), 
     read(p.base_velocity), 
-    rem2pi(read(p.arm_angle) + π, RoundDown), # This package has convention that θ=0 means up, the physical hardware has down.
+    mod2pi(read(p.arm_angle) + π), # This package has convention that θ=0 means up, the physical hardware has down.
     read(p.arm_velocity)
 ]
 ACP.measure(p::SimulatedFurutaPendulum) = p.x .+ p.params.noise * randn(p.rng, 4)

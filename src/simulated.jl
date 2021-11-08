@@ -3,9 +3,9 @@ struct FurutaParams{T}
     β::T
     γ::T
     δ::T
-    τc::T
-    τs::T
-    τv::T
+    Ku::T
+    fϕ::T
+    fθ::T
     h::T
     max_speed::T
     max_torque::T
@@ -29,9 +29,10 @@ end
         la = 4.3e-2,
         lp = 6.46e-2,
         friction = :none,
-        τc = 0.0076,
-        τs = 0.008,
-        τv = 0.008,
+        fϕ = 0.0238,
+        fθ = 0.000008,
+        R = 0.13,
+        Ka = 0.03,
         h = 0.002,
         x0 = zeros(4),
         max_speed = 100,
@@ -65,9 +66,10 @@ function SimulatedFurutaPendulum(;
         mp = 5.44e-3,
         la = 4.3e-2,
         lp = 6.46e-2,
-        τc = 0.0076,
-        τs = 0.008,
-        τv = 0.008,
+        fϕ = 0.0238,
+        fθ = 0.000008,
+        R = 0.13,
+        Ka = 0.03,
         h = 0.002, # Simulation time, TODO find what this actually is
         max_speed = 100,
         max_torque = 0.04,
@@ -81,14 +83,15 @@ function SimulatedFurutaPendulum(;
     β = (M+mp/3)*lp^2
     γ = (M+mp/2)*la*lp
     δ = (M+mp/2)*g*lp
+    Ku = Ka / R
     
-    params = FurutaParams{Float64}(α, β, γ, δ, τc, τs, τv, h, max_speed, max_torque, noise, friction)
+    params = FurutaParams{Float64}(α, β, γ, δ, Ku, fϕ, fθ, h, max_speed, max_torque, noise, friction)
     SimulatedFurutaPendulum{Float64, typeof(rng)}(params, x0, 0.0, rng)
 end
 
 function step!(p::SimulatedFurutaPendulum, dt)
-    u = p.u
     x = p.x
+    u = p.u
     h = p.params.h 
 
     steps = round(Int, dt / h)
@@ -102,8 +105,8 @@ function step!(p::SimulatedFurutaPendulum, dt)
         x .+= h .* (k1 .+ 3 .* k2 .+ 3 .* k3 .+ k4) ./ 8
     end
 
-    x[1] = rem2pi(x[1], RoundToZero)
-    x[3] = rem2pi(x[3], RoundToZero)
+    x[1] = mod2pi(x[1])
+    x[3] = mod2pi(x[3])
 
     # Should this be here?
     x[2] = clamp(x[2] , -p.params.max_speed, p.params.max_speed)
@@ -113,50 +116,35 @@ function step!(p::SimulatedFurutaPendulum, dt)
 end
 
 # See https://portal.research.lu.se/portal/files/4453844/8727127.pdf 
-# and https://ctms.engin.umich.edu/CTMS/index.php?example=MotorSpeed&section=SystemModeling
 # for source of dynamic equations
-function f(p::SimulatedFurutaPendulum, x, τ)
-    # Base angle/speed, arm angle/speed, torque
+function f(p::SimulatedFurutaPendulum, x, u)
+    # Base angle/speed, arm angle/speed
     ϕ, ϕdot, θ, θdot = x
 
-    @unpack α, β, γ, δ, friction = p.params
+    @unpack α, β, γ, δ, Ku, fϕ, fθ = p.params
 
-    # Friction forces
-    τF = 0
-    if friction === :viscous
-        τF = viscous_friction(p, ϕdot)
-    elseif friction === :stiction
-        τF = stiction_friction(p, ϕdot, τ)
-    end
+    # clamp(Ku * p.u, -p.params.max_torque, p.params.max_torque)
+    τϕm = Ku * u # Torque from motor (approximating that transients between voltage and current are fast)
+    τϕf = -fϕ * ϕdot
+    τϕ = τϕm + τϕf
+    # theta joint
+    τθ = -fθ * θdot
 
-    cost = cos(θ)
-    sint = sin(θ)
-
-    ψ = 1 / (α*β - γ^2 + (β^2 + γ^2)*sint^2)
+    ψ = 1 / (α*β - γ^2 + (β^2 + γ^2)*sin(θ)^2)
     dϕ    = ϕdot
-    dϕdot = ψ*(β*γ*(sint^2-1)*sint*ϕdot^2 - 2*β^2*cost*sint*ϕdot*θdot
-        + β*γ*sint*θdot^2 - γ*δ*cost*sint + β*(τ-τF))
+    dϕdot = ψ*(β*γ*(sin(θ)^2-1)*sin(θ)*ϕdot^2 - 2*β^2*cos(θ)*sin(θ)*ϕdot*θdot
+        + β*γ*sin(θ)*θdot^2 - γ*δ*cos(θ)*sin(θ) + β*τϕ - γ*cos(θ)*τθ)
     dθ    = θdot
-    dθdot = ψ * (β*(α+β*sint^2)*cost*sint*ϕdot^2
-        + 2*β*γ*(1-sint^2)*sint*ϕdot*θdot - γ^2*cost*sint*θdot^2
-        + δ*(α+β*sint^2)*sint - γ*cost*(τ-τF)) 
+    dθdot = ψ * (β*(α+β*sin(θ)^2)*cos(θ)*sin(θ)*ϕdot^2
+        + 2*β*γ*(1-sin(θ)^2)*sin(θ)*ϕdot*θdot - γ^2*cos(θ)*sin(θ)*θdot^2
+        + δ*(α+β*sin(θ)^2)*sin(θ) - γ*cos(θ)*τϕ + (α+β*sin(θ)^2)*τθ) 
 
     return [dϕ, dϕdot, dθ, dθdot]
 end
 
-function viscous_friction(p::SimulatedFurutaPendulum, ϕdot)
-    p.params.τc * sign(ϕdot) + p.params.τv * ϕdot
-end
-function stiction_friction(p::SimulatedFurutaPendulum, ϕdot, τ)
-    if abs(ϕdot) > 0.02 
-        p.params.τc*sign(ϕdot) 
-    elseif abs(τ) < p.params.τs
-        τ
-    else
-        τs*sign(τ)
-    end
-end
-
+# To allow reading values on the same low level interface as for the hardware
+# using read(furuta.port)
+# Currently only implemented for energy readings
 struct ValueContainer 
     v::Float64
 end
