@@ -1,7 +1,7 @@
 name = "FurutaPendulums"
 uuid = "8f95568d-7bec-4a61-b2a3-e2d98ddd1432"
 authors = ["albheim "]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 AbstractControlProcesses = "d0d8031c-1ca7-4517-a182-a2551ca8592c"
