@@ -23,8 +23,8 @@ ACP.sampletime(p::FurutaPendulum) = 0.001 # TODO find the correct one
 ACP.sampletime(p::SimulatedFurutaPendulum) = p.params.h
 ACP.bias(p::AbstractFurutaPendulum) = 0
 
-ACP.control(p::FurutaPendulum, u::AbstractArray) = write(p.voltage, only(u))
-ACP.control(p::SimulatedFurutaPendulum, u::AbstractArray) = p.u = only(u)
+ACP.control(p::FurutaPendulum, u::AbstractVector) = write(p.voltage, only(u))
+ACP.control(p::SimulatedFurutaPendulum, u::AbstractVector) = p.u = only(u)
 ACP.measure(p::FurutaPendulum) = [
     read(p.base_angle), 
     read(p.base_velocity), 
